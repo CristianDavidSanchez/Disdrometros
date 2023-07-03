@@ -11,13 +11,17 @@ list_size = {.125: .125, .25: .125, .375: .125,
     2.: .5, 2.5: .5, 3.: .5, 3.5: .5, 4.: .5, 4.5: .5,
     5.: .5, 5.5: .5, 6.: .5, 6.5: .5, 7.: .5, 7.5: .5,
     8.: 1.}
+delta_diam = pd.Series(sorted(list_size.values()), index=sorted(list_size)).astype(float)
+diameters = pd.Series(sorted(list_size.keys()), index=sorted(list_size)).astype(float)
+
+
 def calc_nd(sr_event, dict_speed, dsize=.125, area=45.6 / (100 ** 2), dt=60):
     ND = 0
 
     for speed in sr_event.index:
         if pd.notnull(sr_event.loc[speed]):
             dspeed = dict_speed[speed]
-            ND += sr_event.loc[speed] / (speed * area * dt * dsize)
+            ND += int(sr_event.loc[speed]) / (speed * area * dt * dsize)
     return ND
 
 
@@ -26,7 +30,7 @@ def calc_nt(sr_event, dict_speed, dsize=.125, area=45.6 / (100 ** 2), dt=60):
     for speed in sr_event.index:
         if pd.notnull(sr_event.loc[speed]):
             dspeed = dict_speed[speed]
-            NT += (sr_event.loc[speed] / (speed * area * dt))
+            NT += (int(sr_event.loc[speed]) / (speed * area * dt))
     return NT
 
 
@@ -36,7 +40,7 @@ def calc_W(sr_event, dict_speed, dsize=.125, area=45.6 / (100 ** 2), dt=60):
 
         if pd.notnull(sr_event.loc[speed]):
             dspeed = dict_speed[speed]
-            W += (sr_event.loc[speed] / (speed * area * dt)) * size ** 3
+            W += (int(sr_event.loc[speed]) / (speed * area * dt)) * dsize ** 3
     return W
 
 
@@ -45,7 +49,7 @@ def calc_R(sr_event, dict_speed, dsize=.125, area=45.6 / (100 ** 2), dt=60):
     for speed in sr_event.index:
         if pd.notnull(sr_event.loc[speed]):
             dspeed = dict_speed[speed]
-            R += (sr_event.loc[speed] / (area * dt)) * size * 3.
+            R += (int(sr_event.loc[speed]) / (area * dt)) * dsize * 3.
     return R
 
 
@@ -55,10 +59,15 @@ def calc_Z(sr_event, dict_speed, dsize=.125, area=45.6 / (100 ** 2), dt=60):
 
         if pd.notnull(sr_event.loc[speed]):
             dspeed = dict_speed[speed]
-            Z += (sr_event.loc[speed] / (speed * area * dt)) * size ** 6
+            Z += (int(sr_event.loc[speed]) / (speed * area * dt)) * dsize ** 6
 
     return Z
 
+def calc_MParams(sr_nd,exp):
+    m = pd.Series(index=sorted(list_size))
+    m = sr_nd * delta_diam * diameters ** exp
+    M = m.sum()
+    return M
 def preprocess_csv(chunk):
     dsd_data_final = chunk.copy()
     dsd_data_final['Date_str'] = chunk[0].astype(str)
@@ -68,4 +77,11 @@ def preprocess_csv(chunk):
     dsd_data_final.drop(['Date_str'], axis=1, inplace=True)
     dsd_data_final.drop(range(9), axis=1, inplace=True)
     dsd_data_final.sort_index(inplace=True)
+    dsd_data_final=dsd_data_final.dropna()
+    dsd_data_final=dsd_data_final.drop(dsd_data_final.index[-1])
     return dsd_data_final
+
+def getIndexOfCondition(dataframe,num_gotas):
+    sr_sum_drisd = dataframe.sum(axis=1)
+    idx_events = sr_sum_drisd[sr_sum_drisd.iloc[:] > num_gotas].index
+    return idx_events
